@@ -32,20 +32,48 @@
         #undo {
             margin-top: 20px;
             padding: 10px;
+            background-color: grey;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        #addRow {
+            margin-top: 20px;
+            padding: 10px;
             background-color: #4CAF50;
             color: white;
             border: none;
             cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        #removeRow {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: red;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .fade-slow {
+            transition: opacity 2s ease;
         }
     </style>
 </head>
 
 <body>
-    <button id="undo">Undo</button>
+    <button id="addRow" onclick="addRow()">Add row</button>
+    <button id="removeRow" onclick="removeRow()">Remove row</button>
 </body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
 <script>
     var source = null;
-    let n = 3;// number of row/columns
+    let n = 3;// number of row
+    let m = 3;// number of columns
     var undoStack = [];
     function getRandomColor() {
         const letters = '0123456789ABCDEF';
@@ -55,10 +83,10 @@
         }
         return color;
     }
-    function generateTable(n) {
+    function generateTable(n, m) {
         const table = document.createElement('table');
 
-        for (let i = 0; i < n; i++) {
+        for (let i = 0; i < m; i++) {
             const row = document.createElement('tr');
 
             for (let j = 0; j < n; j++) {
@@ -75,36 +103,59 @@
 
             table.appendChild(row);
         }
+        document.body.appendChild(table);
+        let boxes = document.querySelectorAll('.box');
+        boxes.forEach(function (box) {
+            box.style.background = getRandomColor();
+            box.addEventListener('dragstart', dragStart);
+            box.addEventListener('dragover', dragOver);
+            box.addEventListener('dragend', dragend);
+            box.addEventListener('drag', drag);
+            box.addEventListener('drop', drop);
+        });
 
         return table;
     }
 
-    const table = generateTable(n);
-    document.body.appendChild(table);
-
-    // Add event listeners to all the boxes
-    var boxes = document.querySelectorAll('.box');
-    boxes.forEach(function (box) {
-        box.style.background = getRandomColor();
-        box.addEventListener('dragstart', dragStart);
-        box.addEventListener('dragover', dragOver);
-        box.addEventListener('drop', drop);
-    });
-
-    // Add event listener to the undo button
-    var undoButton = document.getElementById('undo');
+    let table = generateTable(n, m);
+    const undoButton = document.createElement('button');
+    undoButton.innerHTML = 'undo';
+    undoButton.setAttribute('id', 'undo');
+    undoButton.onclick = undo();
+    document.body.appendChild(undoButton)
     undoButton.addEventListener('click', undo);
 
     function dragStart(event) {
         source = event.target;
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('text/html', event.target.innerHTML);
-        event.target.style.opacity = '0.4';
+        event.target.style.opacity = '0.5';
     }
 
     function dragOver(event) {
         event.preventDefault();
         event.dataTransfer.dropEffect = 'move';
+    }
+
+    function dragend(event) {
+        event.target.style.opacity = '1.0';
+    }
+
+    function drag(event) {
+        // Calculate the distance the box has been dragged horizontally and vertically
+        const distanceX = event.clientX - event.target.offsetLeft;
+        const distanceY = event.clientY - event.target.offsetTop;
+
+        // Calculate the maximum distance from the center of the box (diagonal distance)
+        const maxDistance = Math.sqrt(
+            Math.pow(event.target.offsetWidth / 2, 2) + Math.pow(event.target.offsetHeight / 2, 2)
+        );
+
+        // Calculate the opacity based on the distance from the center
+        const opacity = 1 - Math.min(Math.sqrt(distanceX ** 2 + distanceY ** 2) / maxDistance, 1);
+
+        // Set the opacity of the box
+        event.target.style.opacity = opacity.toFixed(2);
     }
 
     function drop(event) {
@@ -113,9 +164,7 @@
         if (destination.className != 'box') {
             destination = destination.parentNode;
         }
-        if (destination != source.parentNode) {
-            console.log(source.style.background);
-
+        if (destination.parentNode !== source.parentNode) {
             undoStack.push([source.id, destination.id]);
             var temp = source.innerHTML;
             source.innerHTML = destination.innerHTML;
@@ -133,6 +182,16 @@
             var lastMove = undoStack.pop();
             var source = document.getElementById(lastMove[1]);
             var destination = document.getElementById(lastMove[0]);
+            let div1 = $(lastMove[1]);
+            let div2 = $(lastMove[0]);
+            let rect = destination.getBoundingClientRect();
+            let top = rect.top;//+ window.scrollY;;
+            let left = rect.left;// + window.scrollX;;
+            div2.animate({ top: div1.css(top), left: div1.css(left) }, 1000);
+            rect = source.getBoundingClientRect();
+            top = rect.top;
+            left = rect.left;
+            div1.animate({ top: div2.css(top), left: div2.css(left) }, 10000);
             var temp = source.innerHTML;
             source.innerHTML = destination.innerHTML;
             destination.innerHTML = temp;
@@ -140,6 +199,22 @@
             source.style.background = destination.style.background;
             destination.style.background = temp;
         }
+    }
+
+    function addRow(){
+        m += 1;
+        document.body.removeChild(table);
+        table = generateTable(n, m)
+        document.body.appendChild(table);
+        undoStack = []
+    }
+
+    function removeRow(){
+        m -= 1;
+        document.body.removeChild(table);
+        table = generateTable(n, m)
+        document.body.appendChild(table);
+        undoStack = []
     }
 </script>
 
